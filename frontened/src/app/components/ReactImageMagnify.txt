@@ -1,0 +1,618 @@
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { useAuthStore } from '../stores/authStore';
+import { useApi } from '../../hooks/useApi';
+import api from '../../utils/api';
+import { useRouter } from 'next/navigation';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
+
+export default function Signup({ setPage }: { setPage: (page: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [securityQuestion1, setSecurityQuestion1] = useState('');
+  const [securityAnswer1, setSecurityAnswer1] = useState('');
+  const [securityQuestion2, setSecurityQuestion2] = useState('');
+  const [securityAnswer2, setSecurityAnswer2] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [nameError, setNameError] = useState('');
+  const { login } = useAuthStore();
+  const { loading, error, handleRequest } = useApi();
+  const router = useRouter();
+
+  const securityQuestions = [
+    'What was the name of your first school?',
+    'What was the first movie you watched in a theater?',
+    'What was the name of your first pet?',
+    'What is your mother’s maiden name?',
+  ];
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    return regex.test(password);
+  };
+
+  const validateName = (name: string) => {
+    const regex = /^[a-zA-Z\s]{2,50}$/;
+    return regex.test(name);
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError('');
+    setPasswordError('');
+    setNameError('');
+
+    if (!email || !password || !name || !securityQuestion1 || !securityAnswer1 || !securityQuestion2 || !securityAnswer2) {
+      toast.error('Please fill in all fields.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      setPasswordError(
+        'Password must be at least 8 characters, with uppercase, lowercase, number, and special character.'
+      );
+      return;
+    }
+
+    if (!validateName(name)) {
+      setNameError('Name must be 2-50 characters, letters only.');
+      return;
+    }
+
+    if (securityQuestion1 === securityQuestion2) {
+      toast.error('Please select different security questions.');
+      return;
+    }
+
+    try {
+      interface SignupResponse {
+        success: boolean;
+        data?: { token: string; user: { id: string; email: string; role: string; name?: string } };
+        error?: string | { message: string }[];
+      }
+
+      const response = await handleRequest(
+        api.post('/api/auth/register', {
+          name,
+          email,
+          password,
+          securityQuestions: [
+            { question: securityQuestion1, answer: securityAnswer1 },
+            { question: securityQuestion2, answer: securityAnswer2 },
+          ],
+        })
+      ) as unknown as SignupResponse;
+
+      console.log('Signup request payload:', { name, email, password, securityQuestions: [{ question: securityQuestion1, answer: securityAnswer1 }, { question: securityQuestion2, answer: securityAnswer2 }] });
+      console.log('Signup response:', response);
+
+      if (!response.success) {
+        throw new Error(
+          typeof response.error === 'string'
+            ? response.error
+            : response.error?.map((e) => e.message).join(', ') || 'Signup failed'
+        );
+      }
+
+      const token = response.data?.token;
+      if (token) {
+        login(token);
+        console.log('Auth state after signup:', useAuthStore.getState());
+        toast.success('Signup successful!');
+        setPage('home');
+        router.push('/');
+      } else {
+        console.error('No token in response:', response);
+        toast.error('No token received from server');
+      }
+    } catch (err: any) {
+      console.error('Signup error:', {
+        message: err.message,
+        response: err.response?.data,
+      });
+      const errorMessage =
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to sign up. Please try again.';
+      if (errorMessage.includes('Email already registered')) {
+        toast.error('This email is already registered.');
+      } else if (errorMessage.includes('Invalid')) {
+        toast.error(errorMessage);
+      } else {
+        toast.error('Failed to sign up. Please try again.');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-6 max-w-md mx-auto">
+        <Skeleton height={40} className="mb-6" />
+        <Skeleton height={40} count={7} className="mb-4" />
+        <Skeleton height={40} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 p-6 max-w-md mx-auto bg-white shadow-lg rounded-lg text-black">
+      <h1 className="text-3xl font-bold mb-6 text-center text-black">Create Your Account</h1>
+      <div aria-live="polite">
+        {(error || emailError || passwordError || nameError) && (
+          <p className="text-red-600 mb-4 text-center">
+            {error || emailError || passwordError || nameError}
+          </p>
+        )}
+      </div>
+      <form onSubmit={handleSignup}>
+        <input
+          type="text"
+          placeholder="Full Name"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            setNameError('');
+          }}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Full Name"
+          aria-invalid={!!nameError}
+          aria-describedby={nameError ? 'name-error' : undefined}
+        />
+        <input
+          type="email"
+          placeholder="Enter your email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError('');
+          }}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Email"
+          aria-invalid={!!emailError}
+          aria-describedby={emailError ? 'email-error' : undefined}
+        />
+        <input
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            setPasswordError('');
+          }}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Password"
+          aria-invalid={!!passwordError}
+          aria-describedby={passwordError ? 'password-error' : undefined}
+        />
+        <select
+          value={securityQuestion1}
+          onChange={(e) => setSecurityQuestion1(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Security Question 1"
+        >
+          <option value="" disabled>
+            Select Security Question 1
+          </option>
+          {securityQuestions.map((q, index) => (
+            <option key={index} value={q}>
+              {q}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          placeholder="Answer to Security Question 1"
+          value={securityAnswer1}
+          onChange={(e) => setSecurityAnswer1(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Answer to Security Question 1"
+        />
+        <select
+          value={securityQuestion2}
+          onChange={(e) => setSecurityQuestion2(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Security Question 2"
+        >
+          <option value="" disabled>
+            Select Security Question 2
+          </option>
+          {securityQuestions.map((q, index) => (
+            <option key={index} value={q}>
+              {q}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          placeholder="Answer to Security Question 2"
+          value={securityAnswer2}
+          onChange={(e) => setSecurityAnswer2(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Answer to Security Question 2"
+        />
+        <button
+          type="submit"
+          className={`w-full bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={loading}
+          aria-label="Sign up"
+        >
+          {loading ? 'Signing up...' : 'Sign up'}
+        </button>
+      </form>
+      <p className="mt-4 text-center text-gray-600">
+        Already have an account?{' '}
+        <span
+          onClick={() => setPage('login')}
+          className="text-red-600 cursor-pointer hover:underline"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setPage('login')}
+        >
+          Log in
+        </span>
+      </p>
+    </div>
+  );
+}
+this is my signup page.tsx file 
+
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { useAuthStore } from '../stores/authStore';
+import { useApi } from '../../hooks/useApi';
+import api from '../../utils/api';
+import Skeleton from 'react-loading-skeleton';
+import 'react-loading-skeleton/dist/skeleton.css';
+import { useRouter } from 'next/navigation';
+
+export default function Login({ setPage }: { setPage: (page: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const { login } = useAuthStore();
+  const { loading, error, handleRequest } = useApi();
+  const router = useRouter();
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError('');
+
+    if (!email || !password) {
+      toast.error('Please enter both email and password.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      interface LoginResponse {
+        success: boolean;
+        data?: { token: string; user: { id: string; email: string; role: string; name?: string } };
+        error?: string;
+      }
+
+      const response = await handleRequest(
+        api.post('/api/auth/login', { email, password })
+      ) as unknown as LoginResponse;
+
+      console.log('Login request payload:', { email, password });
+      console.log('Login response:', response);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Login failed');
+      }
+
+      const token = response.data?.token;
+      if (token) {
+        login(token);
+        console.log('Auth state after login:', useAuthStore.getState());
+        toast.success('Login successful!');
+        setPage('home');
+        router.push('/');
+      } else {
+        console.error('No token in response:', response);
+        toast.error('No token received from server');
+      }
+    } catch (err: any) {
+      console.error('Login error:', {
+        message: err.message,
+        response: err.response?.data,
+      });
+      const errorMessage =
+        err.response?.data?.error || err.message || 'Failed to login. Please try again.';
+      if (errorMessage.includes('Invalid credentials')) {
+        toast.error('Incorrect email or password.');
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex-1 p-6 max-w-md mx-auto">
+        <Skeleton height={40} className="mb-6" />
+        <Skeleton height={40} count={2} className="mb-4" />
+        <Skeleton height={40} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 p-6 max-w-md mx-auto bg-white shadow-lg rounded-lg text-black">
+      <h1 className="text-3xl font-bold mb-6 text-center text-black">
+        Login to Your Account
+      </h1>
+      <div aria-live="polite">
+        {(error || emailError) && (
+          <p className="text-red-600 mb-4 text-center">
+            {error === 'Invalid credentials' ? 'Incorrect email or password.' : error || emailError}
+          </p>
+        )}
+      </div>
+      <form onSubmit={handleLogin}>
+        <input
+          type="email"
+          placeholder="Enter your email (e.g., user@example.com)"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError('');
+          }}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Email"
+          aria-invalid={!!emailError}
+          aria-describedby={emailError ? 'email-error' : undefined}
+        />
+        <input
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Password"
+        />
+        <button
+          type="submit"
+          className={`w-full bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={loading}
+          aria-label="Login"
+        >
+          {loading ? 'Logging in...' : 'Login'}
+        </button>
+      </form>
+      <p className="mt-4 text-center text-gray-600">
+        <span
+          onClick={() => setPage('reset-password')}
+          className="text-red-600 cursor-pointer hover:underline"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setPage('reset-password')}
+        >
+          Forgot Password?
+        </span>
+      </p>
+      <p className="mt-2 text-center text-gray-600">
+        Don’t have an account?{' '}
+        <span
+          onClick={() => setPage('signup')}
+          className="text-red-600 cursor-pointer hover:underline"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setPage('signup')}
+        >
+          Sign up
+        </span>
+      </p>
+    </div>
+  );
+} 
+this is my login page.tsx file
+'use client';
+
+import { useState } from 'react';
+import { toast } from 'react-hot-toast';
+import { useAuthStore } from '../stores/authStore';
+import { useApi } from '../../hooks/useApi';
+import api from '../../utils/api';
+import { useRouter } from 'next/navigation';
+
+export default function AdminLogin({ setPage }: { setPage: (page: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const { login } = useAuthStore();
+  const { loading, error, handleRequest } = useApi();
+  const router = useRouter();
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError('');
+
+    if (!email || !password) {
+      toast.error('Please enter both email and password.');
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      setEmailError('Please enter a valid email address.');
+      return;
+    }
+
+    try {
+      interface LoginResponse {
+        success: boolean;
+        data?: { token: string; user: { id: string; email: string; role: string; name?: string } };
+        error?: string;
+      }
+
+      const response = await handleRequest(
+        api.post('/api/auth/login', { email, password })
+      ) as unknown as LoginResponse;
+
+      console.log('Admin login request payload:', { email, password });
+      console.log('Admin login response:', response);
+
+      if (!response.success) {
+        throw new Error(response.error || 'Login failed');
+      }
+
+      const token = response.data?.token;
+      if (token) {
+        login(token);
+        console.log('Auth state after login:', useAuthStore.getState());
+        toast.success('Admin login successful!');
+        setPage('admin');
+        router.push('/admin'); // Explicit navigation
+      } else {
+        console.error('No token in response:', response);
+        toast.error('No token received from server');
+      }
+    } catch (err: any) {
+      console.error('Admin login error:', err);
+      const errorMessage =
+        err.response?.data?.error || err.message || 'Failed to login. Please try again.';
+      if (errorMessage.includes('Invalid credentials')) {
+        toast.error('Incorrect email or password.');
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+
+  return (
+    <div className="flex-1 p-6 max-w-md mx-auto bg-white shadow-lg rounded-lg">
+      <h1 className="text-3xl font-bold mb-6 text-center text-black">Admin Login</h1>
+      <div aria-live="polite">
+        {(error || emailError) && (
+          <p className="text-red-600 mb-4 text-center">{error || emailError}</p>
+        )}
+      </div>
+      <form onSubmit={handleAdminLogin}>
+        <input
+          type="email"
+          placeholder="Enter admin email (e.g., admin@example.com)"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setEmailError('');
+          }}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Admin email"
+          aria-invalid={!!emailError}
+          aria-describedby={emailError ? 'email-error' : undefined}
+        />
+        <input
+          type="password"
+          placeholder="Enter admin password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full p-2 mb-4 border border-gray-300 rounded-lg disabled:opacity-50"
+          disabled={loading}
+          aria-label="Admin password"
+        />
+        <button
+          type="submit"
+          className={`w-full bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+          disabled={loading}
+          aria-label="Login as admin"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center">
+              <svg
+                className="animate-spin h-5 w-5 mr-2 text-white"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8h8a8 8 0 01-8 8 8 8 0 01-8-8z"
+                />
+              </svg>
+              Logging in...
+            </span>
+          ) : (
+            'Login as Admin'
+          )}
+        </button>
+      </form>
+      <p className="mt-4 text-center text-gray-600">
+        Not an admin?{' '}
+        <span
+          onClick={() => setPage('login')}
+          className="text-red-600 cursor-pointer hover:underline"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setPage('login')}
+        >
+          User Login
+        </span>{' '}
+        or{' '}
+        <span
+          onClick={() => setPage('signup')}
+          className="text-red-600 cursor-pointer hover:underline"
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && setPage('signup')}
+        >
+          Sign Up
+        </span>
+      </p>
+    </div>
+  );
+}
+this is my admin-login page.tsx file 

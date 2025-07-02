@@ -1,0 +1,5 @@
+/api/products/
+/api/products/categories
+/api/products/:id
+/api/products/
+/api/products/:id

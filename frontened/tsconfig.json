@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "src/app/components/Home.jsx", "src/app/layout.jsx", "src/app/wishlist/page.jsx", "src/app/verify-email/page.jsx", "src/app/stores/wishlistStore.js", "src/app/stores/cartStore.js", "src/app/stores/authStore.js", "src/app/signup/page.jsx", "src/app/profile/page.jsx", "src/app/products/[id]/page.jsx", "src/app/orders/page.jsx", "src/app/order-confirmation/page.jsx", "src/app/components/Women.jsx", "src/app/components/SimilarProductCard.jsx", "src/app/components/SearchBar.jsx", "src/app/components/ProductDetailPage.jsx", "src/app/components/ProductCard.jsx", "src/app/components/Newsletter.jsx", "src/app/components/Navbar.jsx", "src/app/components/Mens.jsx", "src/app/components/kids.jsx", "src/app/components/Footer.jsx", "src/app/components/CategorySidebar.jsx", "src/app/components/CartItem.jsx", "src/app/components/Bags.jsx", "src/app/components/AdminPanel.jsx", "src/app/components/AdminLogin.jsx", "src/app/checkout/page.jsx", "src/app/category/[categoryName]/page.jsx", "src/app/cart/page.jsx", "src/app/AdminLogin/page.jsx", "src/app/admin/page.jsx", "src/app/(auth)/reset-password/page.jsx", "src/app/(auth)/register/page.jsx", "src/app/(auth)/login/page.jsx", "src/app/page.jsx", "next.config.js", "src/utils/validation.js", "src/utils/otpUtils.js", "src/utils/otpStore.js", "src/utils/api.js", "src/hooks/useCartActions.js", "src/hooks/useApi.js"],
+  "exclude": ["node_modules"]
+}

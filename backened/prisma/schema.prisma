@@ -1,0 +1,205 @@
+// schema.prisma
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./node_modules/@prisma/client"
+}
+
+model User {
+  id                 String             @id @default(auto()) @map("_id") @db.ObjectId
+  email              String             @unique
+  password           String
+  name               String?
+  role               String             @default("user")
+  reviews            Review[]
+  orders             Order[]
+  usedOfferCodes     UserOfferCode[]
+  securityQuestions  SecurityQuestion[]
+  cart               Cart?              @relation("UserCart")
+  cartId             String?            @db.ObjectId
+  isVerified         Boolean            @default(false)
+  verificationToken  String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  sessions           Session[]          // Add this line to establish the relation
+}
+
+model Product {
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  name           String
+  description    String
+  price          Float
+  mrp            Float?
+  images         String[]            @default(["https://res.cloudinary.com/dugh8szaj/image/upload/v1744894443/bag1_jtaqsb.avif"])
+  category       String
+  colors         String[]            @default(["#000000", "#FF0000", "#00FF00"])
+  sizes          String[]            @default(["S", "M", "L", "XL"])
+  rating         Float?              @default(4.5)
+  reviewCount    Int                 @default(35142)
+  reviews        Review[]
+  deliveryInfo   String?             @default("FREE delivery Fri, 18 Apr or fastest Tomorrow, 17 Apr")
+  quantity       Int                 @default(0)
+  stockBySize    Json?
+  dimensions     Json?
+  weight         Float?
+  orderCount     Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  orderItems     OrderItem[]
+  offerCodes     ProductOfferCode[]
+  cartItems      CartItem[]
+  version        Int                 @default(0)
+}
+
+model Order {
+  id               String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String        @db.ObjectId
+  user             User          @relation(fields: [userId], references: [id])
+  orderItems       OrderItem[]
+  totalAmount      Float
+  status           String        @default("pending")
+  paymentId        String?
+  shiprocketOrderId String?
+  trackingUrl      String?
+  offerCode        String?
+  discount         Float?
+  shippingDetails  Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model OrderItem {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId    String   @db.ObjectId
+  productId  String   @db.ObjectId
+  order      Order    @relation(fields: [orderId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Int
+  size       String?
+  price      Float
+}
+
+model OfferCode {
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  code            String              @unique
+  discount        Int
+  isFirstOrder    Boolean
+  expiryDate      DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  userOfferCodes  UserOfferCode[]
+  products        ProductOfferCode[]
+}
+
+model UserOfferCode {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String     @db.ObjectId
+  offerCodeId  String     @db.ObjectId
+  user         User       @relation(fields: [userId], references: [id])
+  offerCode    OfferCode  @relation(fields: [offerCodeId], references: [id])
+  usedAt       DateTime   @default(now())
+}
+
+model ProductOfferCode {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  productId    String     @db.ObjectId
+  offerCodeId  String     @db.ObjectId
+  product      Product    @relation(fields: [productId], references: [id])
+  offerCode    OfferCode  @relation(fields: [offerCodeId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Settings {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  storeName String
+  currency  String
+  updatedAt DateTime @updatedAt
+}
+
+model SecurityQuestion {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  question  String
+  answer    String
+  createdAt DateTime @default(now())
+}
+
+model OTP {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  email      String
+  otp        String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+}
+
+model Cart {
+  id         String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String     @db.ObjectId @unique
+  user       User       @relation("UserCart", fields: [userId], references: [id])
+  items      CartItem[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+}
+
+model CartItem {
+  id         String    @id @default(auto()) @map("_id") @db.ObjectId
+  cartId     String    @db.ObjectId
+  productId  String    @db.ObjectId
+  cart       Cart      @relation(fields: [cartId], references: [id])
+  product    Product   @relation(fields: [productId], references: [id])
+  quantity   Int
+  price      Float
+  size       String?
+  createdAt  DateTime  @default(now())
+}
+
+model BlacklistedToken {
+  id         String   @id @default(uuid()) @map("_id")
+  token      String   @unique
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime?
+}
+
+model OtpRequest {
+  id        String   @id @default(uuid()) @map("_id")
+  email     String
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId String   @db.ObjectId
+  userId    String   @db.ObjectId
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+model Session {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model LoginAttempt {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  email     String
+  ipAddress String
+  success   Boolean
+  createdAt DateTime @default(now())
+}
