@@ -26,7 +26,6 @@ model User {
   verificationToken  String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-  sessions           Session[]          // Add this line to establish the relation
 }
 
 model Product {
@@ -182,24 +181,4 @@ model Review {
   comment   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-
-model Session {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id])
-  token     String   @unique
-  userAgent String?
-  ipAddress String?
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-}
-
-model LoginAttempt {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  email     String
-  ipAddress String
-  success   Boolean
-  createdAt DateTime @default(now())
 }
